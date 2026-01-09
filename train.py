@@ -4,9 +4,7 @@ import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.linear_model import Ridge
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestRegressor
 
 # -------------------------
 # Paths
@@ -34,30 +32,32 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # -------------------------
-# Pipeline (Scaler + Ridge)
+# Random Forest Model
 # -------------------------
-pipeline = Pipeline([
-    ("scaler", StandardScaler()),
-    ("model", Ridge(alpha=1.0))
-])
+model = RandomForestRegressor(
+    n_estimators=50,
+    max_depth=10,
+    random_state=42
+)
 
-pipeline.fit(X_train, y_train)
+model.fit(X_train, y_train)
 
 # -------------------------
 # Evaluation
 # -------------------------
-y_pred = pipeline.predict(X_test)
+y_pred = model.predict(X_test)
 mse = mean_squared_error(y_test, y_pred)
 r2 = r2_score(y_test, y_pred)
 
 # -------------------------
 # Save model and metrics
 # -------------------------
-joblib.dump(pipeline, MODEL_PATH)
+joblib.dump(model, MODEL_PATH)
 
 metrics = {
-    "Model": "Ridge Regression",
-    "Alpha": 1.0,
+    "Model": "Random Forest",
+    "Trees": 50,
+    "Max Depth": 10,
     "MSE": mse,
     "R2": r2
 }
@@ -65,6 +65,6 @@ metrics = {
 with open(METRICS_PATH, "w") as f:
     json.dump(metrics, f, indent=4)
 
-print("Training completed - Ridge Regression")
+print("Training completed - Random Forest (50 trees)")
 print("MSE:", mse)
 print("R2:", r2)

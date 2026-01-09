@@ -4,7 +4,7 @@ import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
@@ -34,11 +34,11 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # -------------------------
-# Pipeline (Preprocessing + Model)
+# Pipeline (Scaler + Ridge)
 # -------------------------
 pipeline = Pipeline([
     ("scaler", StandardScaler()),
-    ("model", LinearRegression())
+    ("model", Ridge(alpha=1.0))
 ])
 
 pipeline.fit(X_train, y_train)
@@ -51,14 +51,13 @@ mse = mean_squared_error(y_test, y_pred)
 r2 = r2_score(y_test, y_pred)
 
 # -------------------------
-# Save model
+# Save model and metrics
 # -------------------------
 joblib.dump(pipeline, MODEL_PATH)
 
-# -------------------------
-# Save metrics
-# -------------------------
 metrics = {
+    "Model": "Ridge Regression",
+    "Alpha": 1.0,
     "MSE": mse,
     "R2": r2
 }
@@ -66,9 +65,6 @@ metrics = {
 with open(METRICS_PATH, "w") as f:
     json.dump(metrics, f, indent=4)
 
-# -------------------------
-# Print metrics (for logs)
-# -------------------------
-print("Training completed")
+print("Training completed - Ridge Regression")
 print("MSE:", mse)
 print("R2:", r2)

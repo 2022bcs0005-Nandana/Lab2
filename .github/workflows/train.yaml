@@ -87,21 +87,18 @@ jobs:
         with:
           username: ${{ secrets.NANDANA_DOCKER_USERNAME }}
           password: ${{ secrets.NANDANA_TOKEN_DOCKER }}
-                
-      - name: Build docker image
-        if: env.DEPLOY == 'true'
-        run: |
-          docker build -t ${{ secrets.NANDANA_DOCKER_USERNAME }}/wine_predict_2022bcs0005:v02 .
 
-      - name: Push docker image
+      - name: Build and push Docker image
         if: env.DEPLOY == 'true'
-        run: |
-          docker push ${{ secrets.NANDANA_DOCKER_USERNAME }}/wine_predict_2022bcs0005:v02
-
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.NANDANA_DOCKER_USERNAME }}/wine_predict_2022bcs0005:v02
 
       - name: Update best metrics
         if: env.DEPLOY == 'true'
-        env: 
+        env:
           GH_TOKEN: ${{ secrets.NANDANA_TOKEN_LAB3 }}
         run: |
           gh variable set BEST_R2 --body "${New_R2}"

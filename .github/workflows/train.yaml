@@ -94,7 +94,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.NANDANA_DOCKER_USERNAME }}/wine_predict_2022bcs0005:v02
+          tags: |
+            ${{ secrets.NANDANA_DOCKER_USERNAME }}/wine_predict_2022bcs0005:v02
+
 
       - name: Update best metrics
         if: env.DEPLOY == 'true'

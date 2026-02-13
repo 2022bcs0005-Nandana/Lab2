@@ -9,7 +9,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git credentialsId: 'git-creds', url: 'https://github.com/2022bcs0005-Nandana/Lab'
+                git credentialsId: 'git-creds', url: 'https://github.com/2022bcs0005-Nandana/Lab2'
             }
         }
 

@@ -31,8 +31,12 @@ pipeline {
         stage('Read Accuracy') {
             steps {
                 script {
-                    def metrics = readJSON file: 'app/artifacts/metrics.json'
-                    env.ACCURACY = metrics.accuracy.toString()
+                    def acc = sh(
+                        script: ". venv/bin/activate && python -c \"import json; print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
+                        returnStdout: true
+                    ).trim()
+
+                    env.ACCURACY = acc
                     echo "Current Accuracy: ${env.ACCURACY}"
                 }
             }

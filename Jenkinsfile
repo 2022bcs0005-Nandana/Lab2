@@ -5,13 +5,7 @@ pipeline {
         ACCURACY = "0"
     }
 
-    stages {
-
-        stage('Checkout') {
-            steps {
-                git credentialsId: 'git-creds', url: 'https://github.com/2022bcs0005-Nandana/Lab2'
-            }
-        }
+   
 
         stage('Setup Python Virtual Environment') {
             steps {

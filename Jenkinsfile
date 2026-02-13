@@ -41,15 +41,6 @@ pipeline {
         stage('Read Accuracy') {
             steps {
                 script {
-                    sh '''
-                    . venv/bin/activate
-                    python - << 'EOF'
-import json
-with open("app/artifacts/metrics.json") as f:
-    data = json.load(f)
-print(data["accuracy"])
-EOF
-                    '''
                     def acc = sh(
                         script: ". venv/bin/activate && python -c \"import json;print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
                         returnStdout: true
@@ -65,16 +56,17 @@ EOF
         stage('Compare Accuracy') {
             steps {
                 script {
-                    def best = credentials('best-accuracy')
-                    echo "Best Accuracy (stored): ${best}"
+                    withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {
+                        echo "Best Accuracy (stored): ${BEST_ACC}"
 
-                    if (env.ACCURACY.toFloat() > best.toFloat()) {
-                        env.DEPLOY = "true"
-                    } else {
-                        env.DEPLOY = "false"
+                        if (env.ACCURACY.toFloat() > BEST_ACC.toFloat()) {
+                            env.DEPLOY = "true"
+                        } else {
+                            env.DEPLOY = "false"
+                        }
+
+                        echo "Deploy decision: ${env.DEPLOY}"
                     }
-
-                    echo "Deploy decision: ${env.DEPLOY}"
                 }
             }
         }

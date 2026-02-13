@@ -3,9 +3,10 @@ pipeline {
 
     environment {
         ACCURACY = "0"
+        DEPLOY = "false"
     }
 
-   
+    stages {
 
         stage('Setup Python Virtual Environment') {
             steps {
@@ -49,11 +50,13 @@ pipeline {
                     } else {
                         env.DEPLOY = "false"
                     }
+
+                    echo "Deploy decision: ${env.DEPLOY}"
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build and Push Docker Image') {
             when {
                 expression { env.DEPLOY == "true" }
             }
@@ -68,14 +71,6 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
-            when {
-                expression { env.DEPLOY == "true" }
-            }
-            steps {
-                echo "Docker image pushed to Docker Hub"
-            }
-        }
     }
 
     post {

@@ -32,7 +32,7 @@ pipeline {
             steps {
                 script {
                     def acc = sh(
-                        script: ". venv/bin/activate && python -c \"import json; print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
+                        script: "python -c \"import json; print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
                         returnStdout: true
                     ).trim()
 
@@ -44,17 +44,18 @@ pipeline {
 
         stage('Compare Accuracy') {
             steps {
-                script {
-                    def best = credentials('best-accuracy')
-                    echo "Best Accuracy: ${best}"
+                withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {
+                    script {
+                        echo "Best Accuracy: ${BEST_ACC}"
 
-                    if (env.ACCURACY.toFloat() > best.toFloat()) {
-                        env.DEPLOY = "true"
-                    } else {
-                        env.DEPLOY = "false"
+                        if (env.ACCURACY.toFloat() > BEST_ACC.toFloat()) {
+                            env.DEPLOY = "true"
+                        } else {
+                            env.DEPLOY = "false"
+                        }
+
+                        echo "Deploy decision: ${env.DEPLOY}"
                     }
-
-                    echo "Deploy decision: ${env.DEPLOY}"
                 }
             }
         }

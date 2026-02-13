@@ -31,9 +31,8 @@ pipeline {
         stage('Read Accuracy') {
             steps {
                 script {
-                    def json = readFile('app/artifacts/metrics.json')
-                    def parsed = new groovy.json.JsonSlurperClassic().parseText(json)
-                    env.ACCURACY = parsed.accuracy.toString()
+                    def metrics = readJSON file: 'app/artifacts/metrics.json'
+                    env.ACCURACY = metrics.accuracy.toString()
                     echo "Current Accuracy: ${env.ACCURACY}"
                 }
             }
@@ -42,17 +41,16 @@ pipeline {
         stage('Compare Accuracy') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST')]) {
-                        echo "Best Accuracy: ${BEST}"
+                    def best = credentials('best-accuracy')
+                    echo "Best Accuracy: ${best}"
 
-                        if (env.ACCURACY.toFloat() > BEST.toFloat()) {
-                            env.DEPLOY = "true"
-                        } else {
-                            env.DEPLOY = "false"
-                        }
-
-                        echo "Deploy decision: ${env.DEPLOY}"
+                    if (env.ACCURACY.toFloat() > best.toFloat()) {
+                        env.DEPLOY = "true"
+                    } else {
+                        env.DEPLOY = "false"
                     }
+
+                    echo "Deploy decision: ${env.DEPLOY}"
                 }
             }
         }

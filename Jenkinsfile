@@ -27,21 +27,21 @@ pipeline {
                 '''
             }
         }
-
         stage('Read Accuracy') {
             steps {
                 script {
                     def acc = sh(
-                        script: "python -c \"import json; print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
+                        script: ". venv/bin/activate && python3 -c \"import json; print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
                         returnStdout: true
                     ).trim()
-
+        
                     env.ACCURACY = acc
                     echo "Current Accuracy: ${env.ACCURACY}"
                 }
             }
         }
-
+        
+        
         stage('Compare Accuracy') {
             steps {
                 withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {

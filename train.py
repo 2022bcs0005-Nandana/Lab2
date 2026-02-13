@@ -7,14 +7,13 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.ensemble import RandomForestRegressor
 
 # -------------------------
-# Paths
+# Paths (MATCH JENKINSFILE)
 # -------------------------
 DATA_PATH = "data/winequality-red.csv"
-MODEL_PATH = "outputs/model/model.pkl"
-METRICS_PATH = "outputs/metrics/results.json"
+MODEL_PATH = "app/artifacts/model.pkl"
+METRICS_PATH = "app/artifacts/metrics.json"
 
-os.makedirs("outputs/model", exist_ok=True)
-os.makedirs("outputs/metrics", exist_ok=True)
+os.makedirs("app/artifacts", exist_ok=True)
 
 # -------------------------
 # Load dataset
@@ -50,16 +49,13 @@ mse = mean_squared_error(y_test, y_pred)
 r2 = r2_score(y_test, y_pred)
 
 # -------------------------
-# Save model and metrics
+# Save model and metrics (Jenkins compatible)
 # -------------------------
 joblib.dump(model, MODEL_PATH)
 
 metrics = {
-    "Model": "Random Forest",
-    "Trees": 100,
-    "Max Depth": 15,
-    "MSE": mse,
-    "R2": r2
+    "accuracy": float(r2),
+    "mse": float(mse)
 }
 
 with open(METRICS_PATH, "w") as f:
@@ -67,4 +63,5 @@ with open(METRICS_PATH, "w") as f:
 
 print("Training completed - Random Forest (100 trees)")
 print("MSE:", mse)
-print("R2:", r2)
+print("R2 (accuracy):", r2)
+print("Metrics saved to app/artifacts/metrics.json")

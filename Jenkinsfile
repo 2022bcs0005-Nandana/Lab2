@@ -8,11 +8,9 @@ pipeline {
     }
 
     stages {
-
         stage('Pull Image') {
             steps {
                 sh "docker pull ${IMAGE_NAME}"
-                sh "docker images | grep wine_predict_2022bcs0005"
             }
         }
 
@@ -20,7 +18,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d --network host --name wine_api_test ${IMAGE_NAME}
+                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
                 '''
             }
         }
@@ -34,9 +32,8 @@ pipeline {
                                 script: "curl -s -o /dev/null -w \"%{http_code}\" ${API_URL}/docs",
                                 returnStdout: true
                             ).trim()
-
                             echo "Service status: ${status}"
-                            return (status == "200")
+                            return status == "200"
                         }
                     }
                 }
@@ -54,11 +51,9 @@ pipeline {
                     echo "Valid response: ${response}"
 
                     def json = readJSON text: response
-
                     if (!json.containsKey("wine_quality")) {
                         error("Prediction field missing")
                     }
-
                     if (!(json.wine_quality instanceof Number)) {
                         error("Prediction is not numeric")
                     }
@@ -75,9 +70,8 @@ pipeline {
                     ).trim()
 
                     echo "Invalid request status: ${status}"
-
                     if (status == "200") {
-                        error("Invalid input was accepted (should fail)")
+                        error("Invalid input was accepted")
                     }
                 }
             }
@@ -88,23 +82,17 @@ pipeline {
                 sh "docker rm -f ${CONTAINER_NAME} || true"
             }
         }
-
-        stage('Pipeline Result') {
-            steps {
-                echo "All API tests passed successfully."
-            }
-        }
     }
 
     post {
-        always {
-            sh "docker rm -f ${CONTAINER_NAME} || true"
-        }
         success {
-            echo "Pipeline SUCCESS"
+            echo "PIPELINE SUCCESS"
         }
         failure {
-            echo "Pipeline FAILED"
+            echo "PIPELINE FAILED"
+        }
+        always {
+            sh "docker rm -f ${CONTAINER_NAME} || true"
         }
     }
 }

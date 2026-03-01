@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
+        API_URL = "http://localhost:8000"
     }
 
     stages {
@@ -19,7 +20,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d --name wine_api_test ${IMAGE_NAME}
+                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
                 '''
             }
         }
@@ -27,24 +28,15 @@ pipeline {
         stage('Wait for Service Readiness') {
             steps {
                 script {
-                    timeout(time: 1, unit: 'MINUTES') {
+                    timeout(time: 60, unit: 'SECONDS') {
                         waitUntil {
                             def status = sh(
-                                script: '''
-docker exec wine_api_test python - <<EOF
-import requests
-try:
-    r = requests.get("http://localhost:8000/docs", timeout=2)
-    print(r.status_code)
-except:
-    print("000")
-EOF
-                                ''',
+                                script: "curl -s -o /dev/null -w \"%{http_code}\" ${API_URL}/docs",
                                 returnStdout: true
                             ).trim()
 
                             echo "Service status: ${status}"
-                            return status == "200"
+                            return (status == "200")
                         }
                     }
                 }
@@ -55,14 +47,7 @@ EOF
             steps {
                 script {
                     def response = sh(
-                        script: '''
-docker exec wine_api_test python - <<EOF
-import requests, json
-data = json.load(open("valid_input.json"))
-r = requests.post("http://localhost:8000/predict", json=data)
-print(r.text)
-EOF
-                        ''',
+                        script: "curl -s -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @valid_input.json",
                         returnStdout: true
                     ).trim()
 
@@ -85,14 +70,7 @@ EOF
             steps {
                 script {
                     def status = sh(
-                        script: '''
-docker exec wine_api_test python - <<EOF
-import requests, json
-data = json.load(open("invalid_input.json"))
-r = requests.post("http://localhost:8000/predict", json=data)
-print(r.status_code)
-EOF
-                        ''',
+                        script: "curl -s -o /dev/null -w \"%{http_code}\" -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @invalid_input.json",
                         returnStdout: true
                     ).trim()
 

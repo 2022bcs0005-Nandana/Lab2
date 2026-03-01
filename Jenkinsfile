@@ -29,19 +29,18 @@ pipeline {
         stage('Wait for Service Readiness') {
             steps {
                 script {
-                    timeout(time: 60, unit: 'SECONDS') {
+                    timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
-                            def status = sh(
-                                script: "curl -s -o /dev/null -w \"%{http_code}\" ${API_URL}/docs",
+                            sh(
+                                script: 'curl -s -o /dev/null -w %{http_code} http://localhost:8000/docs',
                                 returnStdout: true
-                            ).trim()
-                            echo "Service status: ${status}"
-                            return status == "200"
+                            ).trim() == '200'
                         }
                     }
                 }
             }
         }
+
 
         stage('Send Valid Inference Request') {
             steps {

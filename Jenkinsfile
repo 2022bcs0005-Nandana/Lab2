@@ -4,7 +4,6 @@ pipeline {
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
-        API_URL = "http://localhost:8000"
     }
 
     stages {
@@ -20,7 +19,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
+                docker run -d --name wine_api_test ${IMAGE_NAME}
                 '''
             }
         }
@@ -31,7 +30,7 @@ pipeline {
                     timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
+                                script: "docker exec wine_api_test curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
                                 returnStdout: true
                             ).trim()
                             echo "Service status: ${status}"
@@ -46,7 +45,7 @@ pipeline {
             steps {
                 script {
                     def response = sh(
-                        script: "curl -s -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @valid_input.json",
+                        script: "docker exec wine_api_test curl -s -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @valid_input.json",
                         returnStdout: true
                     ).trim()
 
@@ -69,7 +68,7 @@ pipeline {
             steps {
                 script {
                     def status = sh(
-                        script: "curl -s -o /dev/null -w '%{http_code}' -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @invalid_input.json",
+                        script: "docker exec wine_api_test curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @invalid_input.json",
                         returnStdout: true
                     ).trim()
 

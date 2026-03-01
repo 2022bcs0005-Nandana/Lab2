@@ -2,109 +2,112 @@ pipeline {
     agent any
 
     environment {
-        ACCURACY = "0"
-        DEPLOY = "false"
+        IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:latest"
+        CONTAINER_NAME = "wine_api_test"
+        API_URL = "http://localhost:8000"
     }
 
     stages {
 
-        // Stage 1: Checkout
-        stage('Checkout') {
+        // Stage 1: Pull Image
+        stage('Pull Image') {
             steps {
-                checkout scm
+                sh "docker pull ${IMAGE_NAME}"
+                sh "docker images | grep wine_predict_2022bcs0005"
             }
         }
 
-        // Stage 2: Setup Python Virtual Environment
-        stage('Setup Python Virtual Environment') {
+        // Stage 2: Run Container
+        stage('Run Container') {
             steps {
-                sh '''
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                sh "docker run -d --name ${CONTAINER_NAME} -p 8000:8000 ${IMAGE_NAME}"
             }
         }
 
-        // Stage 3: Train Model
-        stage('Train Model') {
-            steps {
-                sh '''
-                . venv/bin/activate
-                python train.py
-                '''
-            }
-        }
-
-        // Stage 4: Read Accuracy
-        stage('Read Accuracy') {
+        // Stage 3: Wait for Service Readiness
+        stage('Wait for Service Readiness') {
             steps {
                 script {
-                    def acc = sh(
-                        script: ". venv/bin/activate && python -c \"import json;print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
+                    timeout(time: 30, unit: 'SECONDS') {
+                        waitUntil {
+                            def status = sh(
+                                script: "curl -s -o /dev/null -w '%{http_code}' ${API_URL}/docs",
+                                returnStdout: true
+                            ).trim()
+                            return status == "200"
+                        }
+                    }
+                }
+            }
+        }
+
+        // Stage 4: Send Valid Inference Request
+        stage('Send Valid Inference Request') {
+            steps {
+                script {
+                    def response = sh(
+                        script: "curl -s -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @valid_input.json",
                         returnStdout: true
                     ).trim()
 
-                    env.ACCURACY = acc
-                    echo "Current Accuracy: ${env.ACCURACY}"
-                }
-            }
-        }
+                    echo "Valid response: ${response}"
 
-        // Stage 5: Compare Accuracy
-        stage('Compare Accuracy') {
-            steps {
-                script {
-                    withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {
-                        echo "Best Accuracy (stored): ${BEST_ACC}"
+                    def json = readJSON text: response
 
-                        if (env.ACCURACY.toFloat() > BEST_ACC.toFloat()) {
-                            env.DEPLOY = "true"
-                        } else {
-                            env.DEPLOY = "false"
-                        }
+                    if (!json.containsKey("wine_quality")) {
+                        error("Prediction field missing")
+                    }
 
-                        echo "Deploy decision: ${env.DEPLOY}"
+                    if (!(json.wine_quality instanceof Number)) {
+                        error("Prediction is not numeric")
                     }
                 }
             }
         }
 
-        // Stage 6: Build Docker Image (Conditional)
-        stage('Build Docker Image') {
-            when {
-                expression { env.DEPLOY == "true" }
-            }
+        // Stage 5: Send Invalid Request
+        stage('Send Invalid Request') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                        docker.build("2022bcs0005/wine_predict_2022bcs0005:${env.BUILD_NUMBER}")
+                    def status = sh(
+                        script: "curl -s -o /dev/null -w '%{http_code}' -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @invalid_input.json",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Invalid request status: ${status}"
+
+                    if (status == "200") {
+                        error("Invalid input was accepted (should fail)")
                     }
                 }
             }
         }
 
-        // Stage 7: Push Docker Image (Conditional)
-        stage('Push Docker Image') {
-            when {
-                expression { env.DEPLOY == "true" }
-            }
+        // Stage 6: Stop Container
+        stage('Stop Container') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                        def app = docker.image("2022bcs0005/wine_predict_2022bcs0005:${env.BUILD_NUMBER}")
-                        app.push()
-                        app.push("latest")
-                    }
-                }
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+            }
+        }
+
+        // Stage 7: Pipeline Result
+        stage('Pipeline Result') {
+            steps {
+                echo "All API tests passed successfully."
             }
         }
     }
 
     post {
         always {
-            archiveArtifacts artifacts: 'app/artifacts/**', fingerprint: true
+            sh "docker rm -f ${CONTAINER_NAME} || true"
+        }
+        success {
+            echo "Pipeline SUCCESS: API validated correctly."
+        }
+        failure {
+            echo "Pipeline FAILED: One or more validations failed."
         }
     }
 }

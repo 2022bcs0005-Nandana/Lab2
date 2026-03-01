@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:latest"
+        IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
         API_URL = "http://localhost:8000"
     }

@@ -50,10 +50,15 @@ pipeline {
                     ).trim()
 
                     echo "Valid response: ${response}"
+
                     def json = readJSON text: response
 
                     if (!json.containsKey("wine_quality")) {
                         error("Prediction field missing")
+                    }
+
+                    if (!(json.wine_quality instanceof Number)) {
+                        error("Prediction is not numeric")
                     }
                 }
             }
@@ -67,8 +72,10 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
+                    echo "Invalid request status: ${status}"
+
                     if (status == "200") {
-                        error("Invalid input accepted")
+                        error("Invalid input was accepted")
                     }
                 }
             }

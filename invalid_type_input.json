@@ -1,0 +1,13 @@
+{
+  "fixed_acidity": "high",
+  "volatile_acidity": "medium",
+  "citric_acid": "low",
+  "residual_sugar": "sweet",
+  "chlorides": "small",
+  "free_sulfur_dioxide": "many",
+  "total_sulfur_dioxide": "many",
+  "density": "dense",
+  "pH": "acidic",
+  "sulphates": "normal",
+  "alcohol": "strong"
+}

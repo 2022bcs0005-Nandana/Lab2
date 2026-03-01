@@ -30,7 +30,7 @@ pipeline {
                     timeout(time: 60, unit: 'SECONDS') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/",
+                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
                                 returnStdout: true
                             ).trim()
                             echo "Service status: ${status}"
@@ -40,7 +40,6 @@ pipeline {
                 }
             }
         }
-      
         // Stage 4: Send Valid Inference Request
         stage('Send Valid Inference Request') {
             steps {

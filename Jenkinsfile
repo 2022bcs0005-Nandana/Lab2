@@ -30,9 +30,19 @@ pipeline {
                     timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
                             def status = sh(
-                                script: "docker exec wine_api_test curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
+                                script: '''
+docker exec wine_api_test python - <<EOF
+import requests
+try:
+    r = requests.get("http://localhost:8000/docs", timeout=2)
+    print(r.status_code)
+except:
+    print("000")
+EOF
+                                ''',
                                 returnStdout: true
                             ).trim()
+
                             echo "Service status: ${status}"
                             return status == "200"
                         }
@@ -45,7 +55,14 @@ pipeline {
             steps {
                 script {
                     def response = sh(
-                        script: "docker exec wine_api_test curl -s -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @valid_input.json",
+                        script: '''
+docker exec wine_api_test python - <<EOF
+import requests, json
+data = json.load(open("valid_input.json"))
+r = requests.post("http://localhost:8000/predict", json=data)
+print(r.text)
+EOF
+                        ''',
                         returnStdout: true
                     ).trim()
 
@@ -68,7 +85,14 @@ pipeline {
             steps {
                 script {
                     def status = sh(
-                        script: "docker exec wine_api_test curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @invalid_input.json",
+                        script: '''
+docker exec wine_api_test python - <<EOF
+import requests, json
+data = json.load(open("invalid_input.json"))
+r = requests.post("http://localhost:8000/predict", json=data)
+print(r.status_code)
+EOF
+                        ''',
                         returnStdout: true
                     ).trim()
 

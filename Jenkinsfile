@@ -16,7 +16,6 @@ pipeline {
             }
         }
 
-        }
         stage('Run Container') {
             steps {
                 sh '''

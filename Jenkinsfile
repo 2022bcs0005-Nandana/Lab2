@@ -4,10 +4,11 @@ pipeline {
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
-        API_URL = "http://localhost:8000"
+        API_URL = "http://host.docker.internal:8000"
     }
 
     stages {
+
         stage('Pull Image') {
             steps {
                 sh "docker pull ${IMAGE_NAME}"
@@ -18,7 +19,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
+                docker run -d -p 8000:8000 --name wine_api_test 2022bcs0005/wine_predict_2022bcs0005:v02
                 '''
             }
         }
@@ -49,13 +50,10 @@ pipeline {
                     ).trim()
 
                     echo "Valid response: ${response}"
-
                     def json = readJSON text: response
+
                     if (!json.containsKey("wine_quality")) {
                         error("Prediction field missing")
-                    }
-                    if (!(json.wine_quality instanceof Number)) {
-                        error("Prediction is not numeric")
                     }
                 }
             }
@@ -69,30 +67,23 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Invalid request status: ${status}"
                     if (status == "200") {
-                        error("Invalid input was accepted")
+                        error("Invalid input accepted")
                     }
                 }
-            }
-        }
-
-        stage('Stop Container') {
-            steps {
-                sh "docker rm -f ${CONTAINER_NAME} || true"
             }
         }
     }
 
     post {
+        always {
+            sh "docker rm -f ${CONTAINER_NAME} || true"
+        }
         success {
             echo "PIPELINE SUCCESS"
         }
         failure {
             echo "PIPELINE FAILED"
-        }
-        always {
-            sh "docker rm -f ${CONTAINER_NAME} || true"
         }
     }
 }

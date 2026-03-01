@@ -16,11 +16,12 @@ pipeline {
             }
         }
 
+        }
         stage('Run Container') {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
+                docker run -d --network host --name wine_api_test ${IMAGE_NAME}
                 '''
             }
         }

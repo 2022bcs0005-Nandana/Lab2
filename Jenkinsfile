@@ -1,37 +1,33 @@
 pipeline {
     agent any
-
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
-        API_URL = "http://host.docker.internal:8000"
+        API_URL = "http://wine_api_test:8000"
     }
-
     stages {
-
         stage('Pull Image') {
             steps {
                 sh "docker pull ${IMAGE_NAME}"
             }
         }
-
         
-       
         stage('Run Container') {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d --network host --name wine_api_test 2022bcs0005/wine_predict_2022bcs0005:v02
+                docker run -d --network jenkins-net --name wine_api_test 2022bcs0005/wine_predict_2022bcs0005:v02
                 '''
             }
         }
+        
         stage('Wait for Service Readiness') {
             steps {
                 script {
                     timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
                             sh(
-                                script: 'curl -s -o /dev/null -w %{http_code} http://localhost:8000/docs',
+                                script: 'curl -s -o /dev/null -w %{http_code} http://wine_api_test:8000/docs',
                                 returnStdout: true
                             ).trim() == '200'
                         }
@@ -39,7 +35,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Send Valid Inference Request') {
             steps {
                 script {
@@ -47,22 +43,18 @@ pipeline {
                         script: "curl -s -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @valid_input.json",
                         returnStdout: true
                     ).trim()
-
                     echo "Valid response: ${response}"
-
                     def json = readJSON text: response
-
                     if (!json.containsKey("wine_quality")) {
                         error("Prediction field missing")
                     }
-
                     if (!(json.wine_quality instanceof Number)) {
                         error("Prediction is not numeric")
                     }
                 }
             }
         }
-
+        
         stage('Send Invalid Request') {
             steps {
                 script {
@@ -70,9 +62,7 @@ pipeline {
                         script: "curl -s -o /dev/null -w \"%{http_code}\" -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @invalid_input.json",
                         returnStdout: true
                     ).trim()
-
                     echo "Invalid request status: ${status}"
-
                     if (status == "200") {
                         error("Invalid input was accepted")
                     }
@@ -80,7 +70,6 @@ pipeline {
             }
         }
     }
-
     post {
         always {
             sh "docker rm -f ${CONTAINER_NAME} || true"

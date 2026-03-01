@@ -17,6 +17,15 @@ pipeline {
                 sh '''
                 docker rm -f wine_api_test || true
                 docker run -d --network jenkins-net --name wine_api_test 2022bcs0005/wine_predict_2022bcs0005:v02
+                
+                echo "Waiting for container to start..."
+                sleep 10
+                
+                echo "=== Container Status ==="
+                docker ps | grep wine_api_test
+                
+                echo "=== Container Logs ==="
+                docker logs wine_api_test
                 '''
             }
         }
@@ -24,12 +33,17 @@ pipeline {
         stage('Wait for Service Readiness') {
             steps {
                 script {
-                    timeout(time: 1, unit: 'MINUTES') {
+                    timeout(time: 2, unit: 'MINUTES') {
                         waitUntil {
-                            sh(
-                                script: 'curl -s -o /dev/null -w %{http_code} http://wine_api_test:8000/docs',
+                            def result = sh(
+                                script: '''
+                                docker run --rm --network jenkins-net curlimages/curl:latest \
+                                curl -s -o /dev/null -w %{http_code} http://wine_api_test:8000/docs
+                                ''',
                                 returnStdout: true
-                            ).trim() == '200'
+                            ).trim()
+                            echo "Health check returned: ${result}"
+                            return result == '200'
                         }
                     }
                 }
@@ -40,7 +54,13 @@ pipeline {
             steps {
                 script {
                     def response = sh(
-                        script: "curl -s -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @valid_input.json",
+                        script: '''
+                        docker run --rm --network jenkins-net -v $(pwd):/workspace -w /workspace \
+                        curlimages/curl:latest \
+                        curl -s -X POST http://wine_api_test:8000/predict \
+                        -H 'Content-Type: application/json' \
+                        -d @valid_input.json
+                        ''',
                         returnStdout: true
                     ).trim()
                     echo "Valid response: ${response}"
@@ -59,7 +79,14 @@ pipeline {
             steps {
                 script {
                     def status = sh(
-                        script: "curl -s -o /dev/null -w \"%{http_code}\" -X POST ${API_URL}/predict -H 'Content-Type: application/json' -d @invalid_input.json",
+                        script: '''
+                        docker run --rm --network jenkins-net -v $(pwd):/workspace -w /workspace \
+                        curlimages/curl:latest \
+                        curl -s -o /dev/null -w "%{http_code}" \
+                        -X POST http://wine_api_test:8000/predict \
+                        -H 'Content-Type: application/json' \
+                        -d @invalid_input.json
+                        ''',
                         returnStdout: true
                     ).trim()
                     echo "Invalid request status: ${status}"
@@ -72,13 +99,14 @@ pipeline {
     }
     post {
         always {
+            sh "docker logs ${CONTAINER_NAME} || true"
             sh "docker rm -f ${CONTAINER_NAME} || true"
         }
         success {
-            echo "PIPELINE SUCCESS"
+            echo "✅ PIPELINE SUCCESS"
         }
         failure {
-            echo "PIPELINE FAILED"
+            echo "❌ PIPELINE FAILED"
         }
     }
 }

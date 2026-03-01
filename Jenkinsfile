@@ -4,12 +4,11 @@ pipeline {
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
-        API_URL = "http://wine_api_test:8000"
+        API_URL = "http://localhost:8000"
     }
 
     stages {
 
-        // Stage 1: Pull Image
         stage('Pull Image') {
             steps {
                 sh "docker pull ${IMAGE_NAME}"
@@ -17,35 +16,32 @@ pipeline {
             }
         }
 
-        // Stage 2: Run Container
         stage('Run Container') {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
-                docker run -d --name wine_api_test ${IMAGE_NAME}
+                docker run -d -p 8000:8000 --name wine_api_test ${IMAGE_NAME}
                 '''
             }
         }
 
-        // Stage 3: Wait for Service Readiness
         stage('Wait for Service Readiness') {
             steps {
                 script {
                     timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://wine_api_test:8000/docs",
+                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
                                 returnStdout: true
                             ).trim()
                             echo "Service status: ${status}"
-                            return (status == "200")
+                            return status == "200"
                         }
                     }
                 }
             }
         }
 
-        // Stage 4: Send Valid Inference Request
         stage('Send Valid Inference Request') {
             steps {
                 script {
@@ -69,7 +65,6 @@ pipeline {
             }
         }
 
-        // Stage 5: Send Invalid Request
         stage('Send Invalid Request') {
             steps {
                 script {
@@ -87,14 +82,12 @@ pipeline {
             }
         }
 
-        // Stage 6: Stop Container
         stage('Stop Container') {
             steps {
                 sh "docker rm -f ${CONTAINER_NAME} || true"
             }
         }
 
-        // Stage 7: Pipeline Result
         stage('Pipeline Result') {
             steps {
                 echo "All API tests passed successfully."
@@ -107,10 +100,10 @@ pipeline {
             sh "docker rm -f ${CONTAINER_NAME} || true"
         }
         success {
-            echo "Pipeline SUCCESS: API validated correctly."
+            echo "Pipeline SUCCESS"
         }
         failure {
-            echo "Pipeline FAILED: One or more validations failed."
+            echo "Pipeline FAILED"
         }
     }
 }

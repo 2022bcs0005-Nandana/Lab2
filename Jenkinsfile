@@ -8,6 +8,14 @@ pipeline {
 
     stages {
 
+        // Stage 1: Checkout
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // Stage 2: Setup Python Virtual Environment
         stage('Setup Python Virtual Environment') {
             steps {
                 sh '''
@@ -19,6 +27,7 @@ pipeline {
             }
         }
 
+        // Stage 3: Train Model
         stage('Train Model') {
             steps {
                 sh '''
@@ -28,49 +37,69 @@ pipeline {
             }
         }
 
+        // Stage 4: Read Accuracy
         stage('Read Accuracy') {
             steps {
                 script {
-                    def json = readFile('app/artifacts/metrics.json')
-                    def parsed = new groovy.json.JsonSlurper().parseText(json)
-                    env.ACCURACY = parsed.accuracy.toString()
+                    def acc = sh(
+                        script: ". venv/bin/activate && python -c \"import json;print(json.load(open('app/artifacts/metrics.json'))['accuracy'])\"",
+                        returnStdout: true
+                    ).trim()
+
+                    env.ACCURACY = acc
                     echo "Current Accuracy: ${env.ACCURACY}"
                 }
             }
         }
 
+        // Stage 5: Compare Accuracy
         stage('Compare Accuracy') {
             steps {
                 script {
-                    def best = credentials('best-accuracy')
-                    echo "Best Accuracy: ${best}"
+                    withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {
+                        echo "Best Accuracy (stored): ${BEST_ACC}"
 
-                    if (env.ACCURACY.toFloat() > best.toFloat()) {
-                        env.DEPLOY = "true"
-                    } else {
-                        env.DEPLOY = "false"
+                        if (env.ACCURACY.toFloat() > BEST_ACC.toFloat()) {
+                            env.DEPLOY = "true"
+                        } else {
+                            env.DEPLOY = "false"
+                        }
+
+                        echo "Deploy decision: ${env.DEPLOY}"
                     }
-
-                    echo "Deploy decision: ${env.DEPLOY}"
                 }
             }
         }
 
-        stage('Build and Push Docker Image') {
+        // Stage 6: Build Docker Image (Conditional)
+        stage('Build Docker Image') {
             when {
                 expression { env.DEPLOY == "true" }
             }
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                        def app = docker.build("2022bcs0005/wine_predict_2022bcs0005:${env.BUILD_NUMBER}")
+                        docker.build("2022bcs0005/wine_predict_2022bcs0005:${env.BUILD_NUMBER}")
+                    }
+                }
+            }
+        }
+
+        // Stage 7: Push Docker Image (Conditional)
+        stage('Push Docker Image') {
+            when {
+                expression { env.DEPLOY == "true" }
+            }
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                        def app = docker.image("2022bcs0005/wine_predict_2022bcs0005:${env.BUILD_NUMBER}")
                         app.push()
                         app.push("latest")
                     }
                 }
             }
         }
-
     }
 
     post {

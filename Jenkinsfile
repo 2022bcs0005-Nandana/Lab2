@@ -23,24 +23,24 @@ pipeline {
                 sh "docker run -d --name ${CONTAINER_NAME} -p 8000:8000 ${IMAGE_NAME}"
             }
         }
-
         // Stage 3: Wait for Service Readiness
         stage('Wait for Service Readiness') {
             steps {
                 script {
-                    timeout(time: 30, unit: 'SECONDS') {
+                    timeout(time: 60, unit: 'SECONDS') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w '%{http_code}' ${API_URL}/docs",
+                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/",
                                 returnStdout: true
                             ).trim()
-                            return status == "200"
+                            echo "Service status: ${status}"
+                            return (status == "200")
                         }
                     }
                 }
             }
         }
-
+      
         // Stage 4: Send Valid Inference Request
         stage('Send Valid Inference Request') {
             steps {

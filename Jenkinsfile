@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "2022bcs0005/wine_predict_2022bcs0005:v02"
         CONTAINER_NAME = "wine_api_test"
-        API_URL = "http://localhost:8000"
+        API_URL = "http://wine_api_test:8000"
     }
 
     stages {
@@ -20,17 +20,21 @@ pipeline {
         // Stage 2: Run Container
         stage('Run Container') {
             steps {
-                sh "docker run -d --name ${CONTAINER_NAME} -p 8000:8000 ${IMAGE_NAME}"
+                sh '''
+                docker rm -f wine_api_test || true
+                docker run -d --name wine_api_test ${IMAGE_NAME}
+                '''
             }
         }
+
         // Stage 3: Wait for Service Readiness
         stage('Wait for Service Readiness') {
             steps {
                 script {
-                    timeout(time: 60, unit: 'SECONDS') {
+                    timeout(time: 1, unit: 'MINUTES') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs",
+                                script: "curl -s -o /dev/null -w \"%{http_code}\" http://wine_api_test:8000/docs",
                                 returnStdout: true
                             ).trim()
                             echo "Service status: ${status}"
@@ -40,6 +44,7 @@ pipeline {
                 }
             }
         }
+
         // Stage 4: Send Valid Inference Request
         stage('Send Valid Inference Request') {
             steps {
@@ -85,8 +90,7 @@ pipeline {
         // Stage 6: Stop Container
         stage('Stop Container') {
             steps {
-                sh "docker stop ${CONTAINER_NAME} || true"
-                sh "docker rm ${CONTAINER_NAME} || true"
+                sh "docker rm -f ${CONTAINER_NAME} || true"
             }
         }
 

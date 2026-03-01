@@ -15,10 +15,12 @@ pipeline {
             }
         }
 
+        
         stage('Run Container') {
             steps {
                 sh '''
                 docker rm -f wine_api_test || true
+                docker ps -q --filter "publish=8000" | xargs -r docker rm -f
                 docker run -d -p 8000:8000 --name wine_api_test 2022bcs0005/wine_predict_2022bcs0005:v02
                 '''
             }

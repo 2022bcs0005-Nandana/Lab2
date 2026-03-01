@@ -30,6 +30,19 @@ pipeline {
             }
         }
         
+        stage('Verify Test Files') {
+            steps {
+                sh '''
+                echo "=== Checking for test files ==="
+                ls -la *.json || echo "No JSON files found!"
+                echo "=== Content of valid_input.json ==="
+                cat valid_input.json || echo "File not found!"
+                echo "=== Content of invalid_input.json ==="
+                cat invalid_input.json || echo "File not found!"
+                '''
+            }
+        }
+        
         stage('Wait for Service Readiness') {
             steps {
                 script {
@@ -55,11 +68,11 @@ pipeline {
                 script {
                     def response = sh(
                         script: '''
-                        docker run --rm --network jenkins-net -v $(pwd):/workspace -w /workspace \
+                        docker run --rm --network jenkins-net -v /var/jenkins_home/workspace/2022BCS0005-Lab7:/workspace -w /workspace \
                         curlimages/curl:latest \
                         curl -s -X POST http://wine_api_test:8000/predict \
-                        -H 'Content-Type: application/json' \
-                        -d @valid_input.json
+                        -H "Content-Type: application/json" \
+                        --data-binary @valid_input.json
                         ''',
                         returnStdout: true
                     ).trim()
@@ -80,12 +93,12 @@ pipeline {
                 script {
                     def status = sh(
                         script: '''
-                        docker run --rm --network jenkins-net -v $(pwd):/workspace -w /workspace \
+                        docker run --rm --network jenkins-net -v /var/jenkins_home/workspace/2022BCS0005-Lab7:/workspace -w /workspace \
                         curlimages/curl:latest \
                         curl -s -o /dev/null -w "%{http_code}" \
                         -X POST http://wine_api_test:8000/predict \
-                        -H 'Content-Type: application/json' \
-                        -d @invalid_input.json
+                        -H "Content-Type: application/json" \
+                        --data-binary @invalid_input.json
                         ''',
                         returnStdout: true
                     ).trim()

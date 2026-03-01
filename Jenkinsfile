@@ -40,6 +40,7 @@ pipeline {
                 }
             }
         }
+        
 
 
         stage('Send Valid Inference Request') {

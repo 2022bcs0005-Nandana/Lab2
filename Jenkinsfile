@@ -69,8 +69,9 @@ pipeline {
                     def jsonSlurper = new groovy.json.JsonSlurper()
                     def json = jsonSlurper.parseText(response)
                     
-                    if (!json.containsKey("wine_quality")) {
-                        error("Prediction field missing")
+                    // TASK 5 MODIFICATION: Check for wrong field name to demonstrate failure
+                    if (!json.containsKey("prediction")) {  // ← CHANGED: was "wine_quality"
+                        error("Prediction field missing - Expected 'prediction' but API returns 'wine_quality'")
                     }
                     if (!(json.wine_quality instanceof Number)) {
                         error("Prediction is not numeric")
@@ -112,7 +113,8 @@ pipeline {
             echo "✅ ✅ ✅ PIPELINE SUCCESS ✅ ✅ ✅"
         }
         failure {
-            echo "❌ PIPELINE FAILED"
+            echo "❌ ❌ ❌ PIPELINE FAILED ❌ ❌ ❌"
+            echo "TASK 5: This failure is intentional to demonstrate pipeline validation"
         }
     }
 }

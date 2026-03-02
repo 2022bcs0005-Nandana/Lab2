@@ -30,15 +30,6 @@ pipeline {
             }
         }
         
-        stage('Verify Test Files') {
-            steps {
-                sh '''
-                echo "=== Checking for test files ==="
-                ls -la *.json
-                '''
-            }
-        }
-        
         stage('Wait for Service Readiness') {
             steps {
                 script {
@@ -62,15 +53,14 @@ pipeline {
         stage('Send Valid Inference Request') {
             steps {
                 script {
+                    def validJson = readFile('valid_input.json').trim()
                     def response = sh(
-                        script: '''
-                        docker run --rm --network jenkins-net \
-                        -v /var/jenkins_home/workspace/2022BCS0005-Lab7:/workspace -w /workspace \
-                        curlimages/curl:latest \
+                        script: """
+                        docker run --rm --network jenkins-net curlimages/curl:latest \
                         curl -s -X POST http://wine_api_test:8000/predict \
                         -H 'Content-Type: application/json' \
-                        --data-binary @valid_input.json
-                        ''',
+                        -d '${validJson}'
+                        """,
                         returnStdout: true
                     ).trim()
                     echo "Valid response: ${response}"
@@ -88,16 +78,15 @@ pipeline {
         stage('Send Invalid Request') {
             steps {
                 script {
+                    def invalidJson = readFile('invalid_input.json').trim()
                     def status = sh(
-                        script: '''
-                        docker run --rm --network jenkins-net \
-                        -v /var/jenkins_home/workspace/2022BCS0005-Lab7:/workspace -w /workspace \
-                        curlimages/curl:latest \
+                        script: """
+                        docker run --rm --network jenkins-net curlimages/curl:latest \
                         curl -s -o /dev/null -w '%{http_code}' \
                         -X POST http://wine_api_test:8000/predict \
                         -H 'Content-Type: application/json' \
-                        --data-binary @invalid_input.json
-                        ''',
+                        -d '${invalidJson}'
+                        """,
                         returnStdout: true
                     ).trim()
                     echo "Invalid request status: ${status}"

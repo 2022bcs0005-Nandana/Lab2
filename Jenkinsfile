@@ -64,13 +64,18 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     echo "Valid response: ${response}"
-                    def json = readJSON text: response
+                    
+                    // Parse JSON using Groovy's built-in JsonSlurper
+                    def jsonSlurper = new groovy.json.JsonSlurper()
+                    def json = jsonSlurper.parseText(response)
+                    
                     if (!json.containsKey("wine_quality")) {
                         error("Prediction field missing")
                     }
                     if (!(json.wine_quality instanceof Number)) {
                         error("Prediction is not numeric")
                     }
+                    echo "✅ Valid request passed: wine_quality = ${json.wine_quality}"
                 }
             }
         }
@@ -91,8 +96,9 @@ pipeline {
                     ).trim()
                     echo "Invalid request status: ${status}"
                     if (status == "200") {
-                        error("Invalid input was accepted")
+                        error("Invalid input was accepted - this should have failed!")
                     }
+                    echo "✅ Invalid request correctly rejected with status: ${status}"
                 }
             }
         }
@@ -103,7 +109,7 @@ pipeline {
             sh "docker rm -f ${CONTAINER_NAME} || true"
         }
         success {
-            echo "✅ PIPELINE SUCCESS"
+            echo "✅ ✅ ✅ PIPELINE SUCCESS ✅ ✅ ✅"
         }
         failure {
             echo "❌ PIPELINE FAILED"
